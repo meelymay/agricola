@@ -15,3 +15,9 @@ class Field:
 
     def harvest(self):
         return self.sown.pop() if self.sown else None
+
+    def __str__(self):
+        return 'Field: %s %s' % (
+            len(self.sown),
+            self.sown[0] if self.sown else None
+        )

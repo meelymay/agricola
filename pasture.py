@@ -13,6 +13,11 @@ class Pasture:
                 capacity += 2
         return capacity
 
+    def livestock_type(self):
+        if not self.livestock:
+            return None
+        return self.livestock[0]
+
     def add_single_livestock(self, livestock):
         if self.livestock:
             if livestock != self.livestock[0]:
@@ -28,6 +33,14 @@ class Pasture:
             if not added:
                 return i
         return n
+
+    def __str__(self):
+        return 'Pasture %s: %s %s%s' % (
+            self.name,
+            self.livestock_type(),
+            len(self.livestock),
+            'stable' if self.stable else ''
+        )
 
 def shuffle_livestock(pastures, livestock):
     return

@@ -1,5 +1,7 @@
 from collections import defaultdict
 from house import Room
+from pasture import Pasture
+from field import Field
 from constants import *
 import random
 
@@ -16,19 +18,40 @@ class Player:
         self.turns = 2
 
     def come_home(self):
-        self.turns = len(self.get_family())
+        self.turns = self.get_family()
 
     def play_action(self, actions):
         if not self.turns:
             return False
-        action = self.select_action(actions)
-        args = self.specify_action(action)
-        action.apply_action(self, args)
+        acted = False
+        while not acted:
+            action = self.select_action(actions)
+            args = self.specify_action(action)
+            try:
+                success = action.apply_action(self, args)
+                acted = True
+            except Exception, e:
+                print '\n'
+                print e
+                print 'Pick another action: '
         self.turns -= 1
-        return True
+        print 'success?', success
+        return success
 
     def select_action(self, actions):
-        return random.choice(actions)
+        for i in range(len(actions)):
+            action = actions[i]
+            print '%s%s: %s' % ('X' if action.occupied else '', i, action)
+        # TODO prevent selection of occupied actions
+        return actions[input('Select an action by index: ')]
+        # return random.choice(actions)
+
+    def specify_action(self, action):
+        args = {}
+        for arg in action.args:
+            val = raw_input('Specify %s %s: ' % (action, arg))
+            args[k] = val
+        return args
 
     def get_house(self):
         return [space for space in self.farm if isinstance(space, Room)]
@@ -54,7 +77,7 @@ class Player:
 
     def get_livestock(self):
         all_livestock = defaultdict(int)
-        for pasture in self.pastures():
+        for pasture in self.get_pastures():
             livestock, n = pasture.get_livestock()
             all_livestock[livestock] += n
         if self.pet:
@@ -88,13 +111,27 @@ class Player:
             self.supply[WOOD] -= STABLE_COST
         return True
 
+    def renovate(self, args):
+        return True
+
+    def sow(self, crop):
+        for field in self.get_fields():
+            if not field.sown:
+                field.sow(crop)
+        return True
+
+    def plow(self):
+        self.set_next_space(Field())
+        return True
+
     def build_fences(self, woods):
         if woods == 4:
             self.set_next_space(Pasture())
         # TODO guh fences
+        return True
 
     def add_child(self, with_room=True):
-        house = self.house()
+        house = self.get_house()
         empty_rooms = [room for room in house if room.people == 0]
         if with_room:
             if empty_rooms:
@@ -106,7 +143,7 @@ class Player:
     def add_item(self, item, n=1):
         if item in LIVESTOCK:
             return self.add_livestock(item, n=n)
-        self.add_supply(item, n=n)
+        return self.add_supply(item, n=n)
 
     def add_supply(self, item, n=1):
         self.supply[item] += n
@@ -115,7 +152,7 @@ class Player:
     def add_livestock(self, livestock, n=1):
         # TODO shuffle livestock
         accomodated = 0
-        for pasture in self.pastures():
+        for pasture in self.get_pastures():
             placed = pasture.add_livestock(livestock, n=n)
             n -= placed
             accomodated += placed
@@ -128,15 +165,23 @@ class Player:
                 return True
         return False
 
+    def add_occupation(self, occupation):
+        pass
+
+    def buy_major_improvement(self, improvement):
+        pass
+
     def display(self):
-        s = 'FARM:\n'
+        s = '\n----- Player %s\'s State -----\n' % self.name
+        s += 'FARM:\n'
         for space in self.farm:
-            s += space
+            s += str(space) + '\t'
         if self.pet:
             s += 'PET: %s' % self.pet
         s += '\nITEMS:\n'
         for item in self.supply:
             s += '\t%s: %s\n' % (item, self.supply[item])
+        print s
 
     def harvest(self):
         # harvest fields
