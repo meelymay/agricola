@@ -10,6 +10,9 @@ class Game:
         self.stages = [4, 3, 2, 2, 2, 1]
 
     def play(self):
+        for a in self.actions:
+            print a, ':',
+        print '\n^^ ACTIONS ^^'
         round = len(START_ACTIONS)
         for stage, s in zip(self.stages, range(len(self.stages))):
             for i in range(stage):

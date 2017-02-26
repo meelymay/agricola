@@ -39,18 +39,22 @@ class Player:
         return success
 
     def select_action(self, actions):
+        allowed = set([])
         for i in range(len(actions)):
             action = actions[i]
+            if not action.occupied:
+                allowed.add(i)
             print '%s%s: %s' % ('X' if action.occupied else '', i, action)
-        # TODO prevent selection of occupied actions
-        return actions[input('Select an action by index: ')]
-        # return random.choice(actions)
+        i = -1
+        while i not in allowed:
+            i = input('Select an action by index: ')
+        return actions[i]
 
     def specify_action(self, action):
         args = {}
         for arg in action.args:
             val = raw_input('Specify %s %s: ' % (action, arg))
-            args[k] = val
+            args[arg] = val
         return args
 
     def get_house(self):
@@ -90,15 +94,17 @@ class Player:
         STABLE_COST = 2
 
         material = self.get_house()[0].material
+        stable_cost = 2 + (5 if material == WOOD else 0)
         if (self.supply[material] < MATERIAL_COST or
            self.supply[REED] < REED_COST or
-           (stable and self.material == WOOD and self.supply[WOOD] < MATERIAL_COST + STABLE_COST)):
+           (stable and self.supply[WOOD] < stable_cost)):
             return False
         if stable:
-            if stable.pasture_name:
-                self.get_pasture(name).stable = True
+            if stable['pasture_name']:
+                self.get_pasture(stable['pasture_name']).stable = True
             else:
-                pasture = Pasture(None, stable=True)
+                name = self.name_new_pasture()
+                pasture = Pasture(name, stable=True)
                 if not self.set_next_space(pasture):
                     return False
         if not self.set_next_space(Room(0, material)):
@@ -111,13 +117,17 @@ class Player:
             self.supply[WOOD] -= STABLE_COST
         return True
 
-    def renovate(self, args):
+    def renovate(self):
         return True
 
-    def sow(self, crop):
-        for field in self.get_fields():
-            if not field.sown:
-                field.sow(crop)
+    def sow(self, crops):
+        # check enough fields
+        if len(crops) > [f for f in self.get_fields() if not f.sown]:
+            return False
+        for crop in crops:
+            for field in self.get_fields():
+                if not field.sown:
+                    field.sow(crop)
         return True
 
     def plow(self):
@@ -126,7 +136,8 @@ class Player:
 
     def build_fences(self, woods):
         if woods == 4:
-            self.set_next_space(Pasture())
+            name = self.name_new_pasture()
+            self.set_next_space(Pasture(name))
         # TODO guh fences
         return True
 
@@ -165,17 +176,38 @@ class Player:
                 return True
         return False
 
+    def bake_bread(self, grains):
+        if grains > self.supply[GRAIN]:
+            return False
+        self.supply[GRAIN] -= grains
+        self.supply[FOOD] += grains * self.breads
+        return True
+
     def add_occupation(self, occupation):
+        # TODO support occupations
         pass
 
     def buy_major_improvement(self, improvement):
+        # TODO support major improvements
+        self.breads = 2
+        return False
+
+    def buy_minor_improvement(self, improvement):
+        # TODO support minor improvements
         pass
+
+    def name_new_pasture(self):
+        return 'P%s' % len(self.get_pastures())
 
     def display(self):
         s = '\n----- Player %s\'s State -----\n' % self.name
         s += 'FARM:\n'
+        c = 1
         for space in self.farm:
-            s += str(space) + '\t'
+            s += str(space) + '\t\t'
+            if c % 5 == 0:
+                s += '\n'
+            c += 1
         if self.pet:
             s += 'PET: %s' % self.pet
         s += '\nITEMS:\n'

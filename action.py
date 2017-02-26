@@ -47,17 +47,16 @@ def plow_action(player, n):
 
 def sow_action(player, args):
     if player.sow(args['crops']):
-        return player.bake_bread(args['grains'])
+        return player.bake_bread(args['bake_bread'])
     else:
         return False
 
-def plow_sow_action(player, args):
-    n, crops = args
-    player.plow(n)
+def plow_sow_action(player, crops):
+    player.plow()
     return player.sow(crops)
 
-def bake_bread_action(player, n):
-    return player.bake_bread(n)
+def bake_bread_action(player, args):
+    return player.bake_bread(args[GRAIN])
 
 def build_action(player, stable):
     return player.build_room(stable)
@@ -66,7 +65,7 @@ def fences_action(player, woods):
     return player.build_fences(woods)
 
 def renovate_action(player, args):
-    return player.renovate(args)
+    return player.renovate()
 
 def child_action(player, args):
     return player.add_child()
@@ -78,23 +77,28 @@ def major_improvement_action(player, improvement):
     return player.buy_major_improvement(improvement)
 
 def renovate_fences_action(player, args):
-    if player.renovate(args):
+    if player.renovate():
         return fences_action(player, args['woods'])
     else:
         False
 
-OCCUPATION_ACTION = Action(special=occupation_action)
+def meeting_action(player, improvement):
+    # TODO change who's first
+    return player.buy_improvement(improvement)
+
+OCCUPATION_ACTION = Action(special=occupation_action, args=['occupation'])
 PLOW_ACTION = Action(special=plow_action)
-SOW_ACTION = Action(special=sow_action)
-PLOW_SOW_ACTION = Action(special=plow_sow_action)
-BAKE_BREAD_ACTION = Action(special=bake_bread_action)
-BUILD_ACTION = Action(special=build_action)
-FENCES_ACTION = Action(special=fences_action)
+SOW_ACTION = Action(special=sow_action, args=['bake_bread', 'crops'])
+PLOW_SOW_ACTION = Action(special=plow_sow_action, args=['crops'])
+BAKE_BREAD_ACTION = Action(special=bake_bread_action, args=['bake_bread'])
+BUILD_ACTION = Action(special=build_action, args=['stable'])
+FENCES_ACTION = Action(special=fences_action, args=['woods'])
 RENOVATE_ACTION = Action(special=renovate_action)
 CHILD_ACTION = Action(special=child_action)
 CHILD_ACTION2 = Action(special=child_action2)
-MAJOR_IMPROVEMENT_ACTION = Action(special=major_improvement_action)
-RENOVATE_FENCES_ACTION = Action(special=renovate_fences_action)
+MAJOR_IMPROVEMENT_ACTION = Action(special=major_improvement_action, args=['improvement'])
+RENOVATE_FENCES_ACTION = Action(special=renovate_fences_action, args=['fences'])
+MEETING_ACTION = Action(special=meeting_action, args=['improvement'])
 
 WOOD_ACTION = Action(resource=WOOD, accumulation=3)
 WOOD_ACTION2 = Action(resource=WOOD, accumulation=2)
@@ -119,7 +123,8 @@ START_ACTIONS = [
     CLAY_ACTION,
     PLOW_ACTION,
     GRAIN_ACTION,
-    BUILD_ACTION
+    BUILD_ACTION,
+    MEETING_ACTION
 ]
 
 ROUND_ACTIONS = [
@@ -129,12 +134,12 @@ ROUND_ACTIONS = [
         SOW_ACTION,
         FENCES_ACTION
     ], [
-        BOAR_ACTION,
-        RENOVATE_ACTION,
+        STONE_ACTION,
+        VEGETABLE_ACTION,
         CHILD_ACTION
     ], [
-        VEGETABLE_ACTION,
-        STONE_ACTION
+        RENOVATE_ACTION,
+        BOAR_ACTION
     ], [
         CATTLE_ACTION,
         STONE_ACTION
@@ -149,7 +154,8 @@ def shuffle_rounds():
     actions = []
     for stage in ROUND_ACTIONS:
         stage = stage[:]
-        action = random.choice(stage)
-        stage.remove(action)
-        actions.append(action)
+        while stage:
+            action = random.choice(stage)
+            stage.remove(action)
+            actions.append(action)
     return actions
