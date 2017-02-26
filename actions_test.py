@@ -34,15 +34,14 @@ class ActionsTest(unittest.TestCase):
         player.set_next_space(Field())
         player.breads = 2
         args = {
-            'crops': {
-                GRAIN: 1
-            },
+            GRAIN: 1,
             'bake_bread': 1
         }
         if not SOW_ACTION.apply_action(player, args):
             self.assertTrue(False, 'Action not completed.')
         expected = 2
         self.assertEqual(player.supply[FOOD], expected)
+        self.assertEqual(player.supply[GRAIN], 0)
         self.assertEqual(len(player.get_fields()[0].sown), 3)
 
     def test_plow_sow_action(self):
@@ -75,7 +74,7 @@ class ActionsTest(unittest.TestCase):
         player = init_player()
         player.add_supply(WOOD, 5)
         player.add_supply(REED, 2)
-        args = {}
+        args = {'stable': 0}
         if not BUILD_ACTION.apply_action(player, args):
             self.assertTrue(False, 'Action not completed.')
         expected = 3
@@ -83,11 +82,12 @@ class ActionsTest(unittest.TestCase):
 
     def test_fences_action(self):
         player = init_player()
-        player.add_supply(WOOD, 4)
+        player.add_supply(WOOD, 7)
         args = {WOOD: 4}
         if not FENCES_ACTION.apply_action(player, args):
             self.assertTrue(False, 'Action not completed.')
         expected = 1
+        self.assertEqual(player.supply[WOOD], 3)
         self.assertEqual(len(player.get_pastures()), expected)
 
     def test_renovate_action(self):

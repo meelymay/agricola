@@ -27,6 +27,9 @@ class Pasture:
         self.livestock.append(livestock)
         return True
 
+    def get_livestock(self):
+        return (self.livestock_type(), len(self.livestock))
+
     def add_livestock(self, livestock, n=1):
         for i in range(n):
             added = self.add_single_livestock(livestock)
@@ -35,10 +38,10 @@ class Pasture:
         return n
 
     def __str__(self):
-        return 'Pasture %s: %s %s%s' % (
+        return 'Pasture %s: %s %s %s' % (
             self.name,
-            self.livestock_type(),
-            len(self.livestock),
+            self.livestock_type() or '',
+            len(self.livestock) or 'empty',
             'stable' if self.stable else ''
         )
 

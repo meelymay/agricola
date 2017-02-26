@@ -13,6 +13,7 @@ class Player:
         self.farm[0] = Room(1, WOOD)
         self.farm[1] = Room(1, WOOD)
         self.supply = defaultdict(int)
+        self.breads = 1
         self.pet = None
         self.famines = 0
         self.turns = 2
@@ -27,13 +28,12 @@ class Player:
         while not acted:
             action = self.select_action(actions)
             args = self.specify_action(action)
-            try:
-                success = action.apply_action(self, args)
-                acted = True
-            except Exception, e:
-                print '\n'
-                print e
-                print 'Pick another action: '
+            success = action.apply_action(self, args)
+            acted = True
+            # except Exception, e:
+            #     print '\n'
+            #     print e
+            #     print 'Pick another action: '
         self.turns -= 1
         print 'success?', success
         return success
@@ -54,6 +54,10 @@ class Player:
         args = {}
         for arg in action.args:
             val = raw_input('Specify %s %s: ' % (action, arg))
+            try:
+                val = int(val)
+            except:
+                pass
             args[arg] = val
         return args
 
@@ -98,21 +102,27 @@ class Player:
         if (self.supply[material] < MATERIAL_COST or
            self.supply[REED] < REED_COST or
            (stable and self.supply[WOOD] < stable_cost)):
+            print MATERIAL_COST, self.supply[material]
+            print REED_COST, self.supply[REED]
+            print stable, STABLE_COST
+            print 'You can\'t afford a room yet!'
             return False
         if stable:
-            if stable['pasture_name']:
-                self.get_pasture(stable['pasture_name']).stable = True
+            if stable in [p.name for p in self.get_pastures()]:
+                self.get_pasture(stable).stable = True
             else:
                 name = self.name_new_pasture()
                 pasture = Pasture(name, stable=True)
                 if not self.set_next_space(pasture):
+                    print 'Couldn\'t set a pasture.'
                     return False
         if not self.set_next_space(Room(0, material)):
             # TODO unset pasture
+            print 'Couldn\'t set a room???'
             return False
         # TODO balance family if multiple per room
         self.supply[material] -= MATERIAL_COST
-        self.supply[material] -= REED_COST
+        self.supply[REED] -= REED_COST
         if stable:
             self.supply[WOOD] -= STABLE_COST
         return True
@@ -129,14 +139,22 @@ class Player:
 
     def sow(self, crops):
         # check enough fields
+        for crop in crops:
+            if crop in CROPS and self.supply[crop] < crops[crop]:
+                print 'You don\'t have enough %s to plant.' % crop
+                return False
         if sum(crops.values()) > [f for f in self.get_fields() if not f.sown]:
+            print 'You don\'t have enough empty fields'
             return False
         for crop in crops:
+            if crop not in CROPS:
+                continue
             n = crops[crop]
             for i in range(n):
                 for field in self.get_fields():
                     if not field.sown:
                         field.sow(crop)
+                        self.supply[crop] -= 1
                         break
         return True
 
@@ -151,6 +169,7 @@ class Player:
             name = self.name_new_pasture()
             self.set_next_space(Pasture(name))
         # TODO guh fences
+        self.supply[WOOD] -= woods
         return True
 
     def add_child(self, with_room=True):
@@ -229,7 +248,7 @@ class Player:
 
     def harvest(self):
         # harvest fields
-        for field in self.fields():
+        for field in self.get_fields():
             self.add_supply(field.harvest())
         # TODO food stuffs at harvest
         # convert to food

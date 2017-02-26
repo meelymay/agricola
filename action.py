@@ -46,7 +46,7 @@ def plow_action(player, n):
     return player.plow()
 
 def sow_action(player, args):
-    if player.sow(args['crops']):
+    if player.sow(args):
         return player.bake_bread(args['bake_bread'])
     else:
         return False
@@ -58,8 +58,8 @@ def plow_sow_action(player, crops):
 def bake_bread_action(player, args):
     return player.bake_bread(args[GRAIN])
 
-def build_action(player, stable):
-    return player.build_room(stable)
+def build_action(player, args):
+    return player.build_room(args['stable'])
 
 def fences_action(player, args):
     return player.build_fences(args[WOOD])
@@ -88,8 +88,8 @@ def meeting_action(player, improvement):
 
 OCCUPATION_ACTION = Action(special=occupation_action, args=['occupation'])
 PLOW_ACTION = Action(special=plow_action)
-SOW_ACTION = Action(special=sow_action, args=['bake_bread', 'crops'])
-PLOW_SOW_ACTION = Action(special=plow_sow_action, args=['crops'])
+SOW_ACTION = Action(special=sow_action, args=['bake_bread', GRAIN, VEGETABLE])
+PLOW_SOW_ACTION = Action(special=plow_sow_action, args=[GRAIN, VEGETABLE])
 BAKE_BREAD_ACTION = Action(special=bake_bread_action, args=['bake_bread'])
 BUILD_ACTION = Action(special=build_action, args=['stable'])
 FENCES_ACTION = Action(special=fences_action, args=[WOOD])
@@ -97,7 +97,7 @@ RENOVATE_ACTION = Action(special=renovate_action)
 CHILD_ACTION = Action(special=child_action)
 CHILD_ACTION2 = Action(special=child_action2)
 MAJOR_IMPROVEMENT_ACTION = Action(special=major_improvement_action, args=['improvement'])
-RENOVATE_FENCES_ACTION = Action(special=renovate_fences_action, args=['fences'])
+RENOVATE_FENCES_ACTION = Action(special=renovate_fences_action, args=[WOOD])
 MEETING_ACTION = Action(special=meeting_action, args=['improvement'])
 
 WOOD_ACTION = Action(resource=WOOD, accumulation=3)

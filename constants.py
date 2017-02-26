@@ -10,6 +10,7 @@ BOAR = 'boar'
 CATTLE = 'cattle'
 PERSON = 'person'
 
+CROPS = [GRAIN, VEGETABLE]
 LIVESTOCK = [SHEEP, BOAR, CATTLE]
 
 SCORES = {
