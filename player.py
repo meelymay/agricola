@@ -117,17 +117,27 @@ class Player:
             self.supply[WOOD] -= STABLE_COST
         return True
 
-    def renovate(self):
+    def renovate(self, material):
+        REED_COST = 1
+        if len(self.get_house()) > self.supply[material] or self.supply[REED] < REED_COST:
+            print 'could not renovate :('
+            return False
+        self.supply[material] -= len(self.get_house())
+        self.supply[REED] -= REED_COST
+        self.set_next_space(Room(0, material))
         return True
 
     def sow(self, crops):
         # check enough fields
-        if len(crops) > [f for f in self.get_fields() if not f.sown]:
+        if sum(crops.values()) > [f for f in self.get_fields() if not f.sown]:
             return False
         for crop in crops:
-            for field in self.get_fields():
-                if not field.sown:
-                    field.sow(crop)
+            n = crops[crop]
+            for i in range(n):
+                for field in self.get_fields():
+                    if not field.sown:
+                        field.sow(crop)
+                        break
         return True
 
     def plow(self):
@@ -135,6 +145,8 @@ class Player:
         return True
 
     def build_fences(self, woods):
+        if self.supply[WOOD] < woods:
+            return False
         if woods == 4:
             name = self.name_new_pasture()
             self.set_next_space(Pasture(name))

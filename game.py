@@ -50,5 +50,5 @@ class Game:
 
 
 if __name__ == '__main__':
-    g = Game(['Amelia', 'Dan'])
+    g = Game(['Amelia', 'Ilana'])
     g.play()
