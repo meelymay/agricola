@@ -1,11 +1,17 @@
 from player import *
 from action import *
+from improvements import MINOR_IMPROVEMENTS
 
 
 class Game:
 
     def __init__(self, names):
-        self.players = [Player(name) for name in names]
+        self.players = []
+        for name in names:
+            improvements = MINOR_IMPROVEMENTS[10:17]
+            # TODO deal occupations
+            occupations = []
+            self.players.append(Player(name, improvements, occupations))
         self.actions = START_ACTIONS + shuffle_rounds()
         self.stages = [4, 3, 2, 2, 2, 1]
 
@@ -34,8 +40,10 @@ class Game:
                     still_playing = False
                     for player in self.players:
                         player.display()
-                        if player.play_action(actions):
-                            print player, 'played'
+                        played = False
+                        while not played:
+                            played = player.play_action(actions)
+                        if played != 'PASSED':
                             still_playing = True
                 for player in self.players:
                     player.come_home()

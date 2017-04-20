@@ -74,7 +74,7 @@ def child_action2(player, args):
     return player.add_child(with_room=False)
 
 def major_improvement_action(player, improvement):
-    return player.buy_major_improvement(improvement)
+    return player.buy_improvement(improvement)
 
 def renovate_fences_action(player, args):
     if player.renovate(args['material']):

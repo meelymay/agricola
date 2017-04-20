@@ -9,6 +9,7 @@ SHEEP = 'sheep'
 BOAR = 'boar'
 CATTLE = 'cattle'
 PERSON = 'person'
+OCCUPATION = 'occupation'
 
 CROPS = [GRAIN, VEGETABLE]
 LIVESTOCK = [SHEEP, BOAR, CATTLE]

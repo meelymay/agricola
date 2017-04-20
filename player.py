@@ -6,36 +6,54 @@ from constants import *
 import random
 
 
+TURN_ERROR = '!!!!!!!!    !!!  %s  !!!    !!!!!!!'
+
+
 class Player:
-    def __init__(self, name):
+    def __init__(self, name, improvements, occupations):
         self.name = name
+
+        self.improvements = {}
+        for improvement in improvements:
+            self.improvements[improvement.name()] = improvement
+        self.occupations = occupations
+
         self.farm = [None for i in range(15)]
         self.farm[0] = Room(1, WOOD)
         self.farm[1] = Room(1, WOOD)
+
         self.supply = defaultdict(int)
         self.breads = 1
         self.pet = None
         self.famines = 0
         self.turns = 2
+        self.infants = 0
+        self.cooked_food = defaultdict(int)
+
+        self.at_any_time = []
+        self.after_action = {}
 
     def come_home(self):
+        self.infants = 0
         self.turns = self.get_family()
 
     def play_action(self, actions):
         if not self.turns:
-            return False
+            return 'PASSED'
         acted = False
         while not acted:
             action = self.select_action(actions)
             args = self.specify_action(action)
             success = action.apply_action(self, args)
+            if action in self.after_action:
+                for subsequent in self.after_action[action]:
+                    subsequent(self)
             acted = True
             # except Exception, e:
             #     print '\n'
             #     print e
             #     print 'Pick another action: '
         self.turns -= 1
-        print 'success?', success
         return success
 
     def select_action(self, actions):
@@ -57,7 +75,8 @@ class Player:
             try:
                 val = int(val)
             except:
-                pass
+                if val == '':
+                    val = 0
             args[arg] = val
         return args
 
@@ -65,7 +84,7 @@ class Player:
         return [space for space in self.farm if isinstance(space, Room)]
 
     def get_pasture(self, name):
-        return [p for p in self.get_pastures() if p.name == name]
+        return [p for p in self.get_pastures() if p.name == name][0]
 
     def get_pastures(self):
         return [space for space in self.farm if isinstance(space, Pasture)]
@@ -81,6 +100,7 @@ class Player:
             if self.farm[i] is None:
                 self.farm[i] = space
                 return True
+        print TURN_ERROR % 'Your farm is full.'
         return False
 
     def get_livestock(self):
@@ -102,10 +122,7 @@ class Player:
         if (self.supply[material] < MATERIAL_COST or
            self.supply[REED] < REED_COST or
            (stable and self.supply[WOOD] < stable_cost)):
-            print MATERIAL_COST, self.supply[material]
-            print REED_COST, self.supply[REED]
-            print stable, STABLE_COST
-            print 'You can\'t afford a room yet!'
+            print TURN_ERROR % 'You can\'t afford a room yet!'
             return False
         if stable:
             if stable in [p.name for p in self.get_pastures()]:
@@ -114,11 +131,11 @@ class Player:
                 name = self.name_new_pasture()
                 pasture = Pasture(name, stable=True)
                 if not self.set_next_space(pasture):
-                    print 'Couldn\'t set a pasture.'
+                    print TURN_ERROR % 'Couldn\'t set a pasture.'
                     return False
         if not self.set_next_space(Room(0, material)):
             # TODO unset pasture
-            print 'Couldn\'t set a room???'
+            print TURN_ERROR % 'Couldn\'t set a room???'
             return False
         # TODO balance family if multiple per room
         self.supply[material] -= MATERIAL_COST
@@ -130,7 +147,7 @@ class Player:
     def renovate(self, material):
         REED_COST = 1
         if len(self.get_house()) > self.supply[material] or self.supply[REED] < REED_COST:
-            print 'could not renovate :('
+            print TURN_ERROR % 'Could not renovate :('
             return False
         self.supply[material] -= len(self.get_house())
         self.supply[REED] -= REED_COST
@@ -141,10 +158,10 @@ class Player:
         # check enough fields
         for crop in crops:
             if crop in CROPS and self.supply[crop] < crops[crop]:
-                print 'You don\'t have enough %s to plant.' % crop
+                print TURN_ERROR % ('You don\'t have enough %s to plant. (%s, %s)' % (crop, self.supply[crop], crops[crop]))
                 return False
         if sum(crops.values()) > [f for f in self.get_fields() if not f.sown]:
-            print 'You don\'t have enough empty fields'
+            print TURN_ERROR % 'You don\'t have enough empty fields'
             return False
         for crop in crops:
             if crop not in CROPS:
@@ -164,10 +181,32 @@ class Player:
 
     def build_fences(self, woods):
         if self.supply[WOOD] < woods:
+            print TURN_ERROR % 'You don\t have that much wood.'
             return False
-        if woods == 4:
-            name = self.name_new_pasture()
+        existing = len(self.get_pastures())
+        name = self.name_new_pasture()
+        if woods == 4 and existing != 1:
+            if existing == 0:
+                self.set_next_space(Pasture(name))
+            else:
+                self.set_next_space(Pasture(name))
+                self.set_next_space(Pasture(name))
+        elif woods == 3 and existing > 0:
             self.set_next_space(Pasture(name))
+        elif woods == 2 and existing == 3:
+            self.set_next_space(Pasture(name))
+        elif woods == 5:
+            self.set_next_space(Pasture(name))
+            name2 = self.name_new_pasture()
+            self.set_next_space(Pasture(name2))
+        elif woods == 6:
+            self.set_next_space(Pasture(name))
+            self.set_next_space(Pasture(name))
+        elif woods == 7:
+            self.set_next_space(Pasture(name))
+            name2 = self.name_new_pasture()
+            self.set_next_space(Pasture(name2))
+
         # TODO guh fences
         self.supply[WOOD] -= woods
         return True
@@ -175,11 +214,12 @@ class Player:
     def add_child(self, with_room=True):
         house = self.get_house()
         empty_rooms = [room for room in house if room.people == 0]
-        if with_room:
-            if empty_rooms:
-                return False
+        if with_room and not empty_rooms:
+            print TURN_ERROR % 'You don\'t have room for children'
+            return False
         room = empty_rooms[0] if empty_rooms else house[0]
         room.people += 1
+        self.infants += 1
         return True
 
     def add_item(self, item, n=1):
@@ -188,10 +228,16 @@ class Player:
         return self.add_supply(item, n=n)
 
     def add_supply(self, item, n=1):
+        if n < 0:
+            if -n > self.supply[item]:
+                return False
+
         self.supply[item] += n
         return True
 
     def add_livestock(self, livestock, n=1):
+        # TODO remove livestock when n < 0
+
         # TODO shuffle livestock
         accomodated = 0
         for pasture in self.get_pastures():
@@ -205,10 +251,12 @@ class Player:
             if n == 1:
                 # this was the last one to place
                 return True
+        print TURN_ERROR % 'Some livestock unplaced.'
         return False
 
     def bake_bread(self, grains):
         if grains > self.supply[GRAIN]:
+            print TURN_ERROR % 'Not enough grain.'
             return False
         self.supply[GRAIN] -= grains
         self.supply[FOOD] += grains * self.breads
@@ -218,14 +266,34 @@ class Player:
         # TODO support occupations
         pass
 
-    def buy_major_improvement(self, improvement):
-        # TODO support major improvements
-        self.breads = 2
-        return False
+    def buy_improvement(self, improvement_name):
+        # TODO support improvements
+        improvement = self.improvements[improvement_name]
+        improvement.apply_instant(self)
+        for cost in improvement.cost:
+            afforded = self.add_item(cost, n=-improvement.cost[cost])
+            # TODO check improvement cost paid for, reverse if not
+        return True
 
-    def buy_minor_improvement(self, improvement):
-        # TODO support minor improvements
-        pass
+    def convert_to_food(self, item):
+        if item in LIVESTOCK:
+            l = self.get_livestock()
+            if item not in l or l[item] == 0:
+                print '!!! You do not have %s to convert !!!' % item
+                return False
+            if self.pet == item:
+                self.pet = None
+            else:
+                for pasture in self.get_pastures():
+                    if pasture.livestock_type() == item:
+                        pasture.livestock.pop()
+        else:
+            if self.supply[item] == 0:
+                print '!!! You do not have %s to convert !!!' % item
+                return False
+            self.supply[item] -= 1
+        self.supply[FOOD] += self.cooked_food[item]
+        return True
 
     def name_new_pasture(self):
         return 'P%s' % len(self.get_pastures())
@@ -241,9 +309,12 @@ class Player:
             c += 1
         if self.pet:
             s += 'PET: %s' % self.pet
-        s += '\nITEMS:\n'
+        s += '\nSUPPLY:\n'
         for item in self.supply:
             s += '\t%s: %s\n' % (item, self.supply[item])
+        s += '\nIMPROVEMENTS:\n'
+        for improvement in self.improvements.values():
+            s += '\t< %s >\n' % improvement
         print s
 
     def harvest(self):
@@ -252,6 +323,14 @@ class Player:
             self.add_supply(field.harvest())
         # TODO food stuffs at harvest
         # convert to food
+        food_needed = 2*self.get_family() - self.infants
+        print 'You can cook:'
+        for item in self.cooked_food:
+            print '\t%s -> %s food' % (item, self.cooked_food[item])
+        while food_needed > self.supply[FOOD]:
+            item = input('Which item would you like to cook? ')
+            self.convert_to_food(item)
+        self.supply[FOOD] -= food_needed
         # eat food
         # reproduce animals
         all_livestock = self.get_livestock()
