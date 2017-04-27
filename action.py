@@ -2,6 +2,16 @@ from constants import *
 import random
 
 
+def parse_int(int_str):
+    try:
+        return int(int_str)
+    except:
+        if not int_str:
+            return 0
+        else:
+            raise Exception('Invalid integer input ' + int_str)
+
+
 class Action:
     def __init__(self, resource=None, special=None, accumulation=0, count=0, args=[]):
         if not resource and not special:
@@ -46,8 +56,8 @@ def plow_action(player, n):
     return player.plow()
 
 def sow_action(player, args):
-    if player.sow(args):
-        return player.bake_bread(args['bake_bread'])
+    if player.sow(args) and player.breads:
+        return player.bake_bread(parse_int(args['bake_bread']))
     else:
         return False
 
@@ -56,10 +66,12 @@ def plow_sow_action(player, crops):
     return player.sow(crops)
 
 def bake_bread_action(player, args):
-    return player.bake_bread(args[GRAIN])
+    return player.bake_bread(parse_int(args[GRAIN]))
 
 def build_action(player, args):
-    return player.build_room(args['stable'])
+    return player.build_room(
+        parse_int(args['rooms']) or 1,
+        args['stables'].split(',') if args['stables'] else [])
 
 def fences_action(player, args):
     return player.build_fences(args[WOOD])
@@ -74,7 +86,13 @@ def child_action2(player, args):
     return player.add_child(with_room=False)
 
 def major_improvement_action(player, improvement):
-    return player.buy_improvement(improvement)
+    return player.buy_improvement(improvement, major=True)
+
+def renovate_improvement_action(player, args):
+    if player.renovate(args['material']):
+        return player.buy_improvement(args['improvement'], major=True)
+    else:
+        False
 
 def renovate_fences_action(player, args):
     if player.renovate(args['material']):
@@ -91,9 +109,9 @@ PLOW_ACTION = Action(special=plow_action)
 SOW_ACTION = Action(special=sow_action, args=['bake_bread', GRAIN, VEGETABLE])
 PLOW_SOW_ACTION = Action(special=plow_sow_action, args=[GRAIN, VEGETABLE])
 BAKE_BREAD_ACTION = Action(special=bake_bread_action, args=['bake_bread'])
-BUILD_ACTION = Action(special=build_action, args=['stable'])
+BUILD_ACTION = Action(special=build_action, args=['stables', 'rooms'])
 FENCES_ACTION = Action(special=fences_action, args=[WOOD])
-RENOVATE_ACTION = Action(special=renovate_action)
+RENOVATE_ACTION = Action(special=renovate_improvement_action)
 CHILD_ACTION = Action(special=child_action)
 CHILD_ACTION2 = Action(special=child_action2)
 MAJOR_IMPROVEMENT_ACTION = Action(special=major_improvement_action, args=['improvement'])
@@ -106,11 +124,16 @@ REED_ACTION = Action(resource=REED, accumulation=1)
 CLAY_ACTION = Action(resource=CLAY, accumulation=1)
 FOOD_ACTION = Action(resource=FOOD, accumulation=1)
 FOOD_ACTION2 = Action(resource=FOOD, count=2)
+DAY_LABORER = FOOD_ACTION2
 SHEEP_ACTION = Action(resource=SHEEP, accumulation=1)
+SHEEP_MARKET = SHEEP_ACTION
 BOAR_ACTION = Action(resource=BOAR, accumulation=1)
+BOAR_MARKET = BOAR_ACTION
 GRAIN_ACTION = Action(resource=GRAIN, count=1)
+GRAIN_SEEDS = GRAIN_ACTION
 VEGETABLE_ACTION = Action(resource=VEGETABLE, count=1)
 CATTLE_ACTION = Action(resource=CATTLE, accumulation=1)
+CATTLE_MARKET = CATTLE_ACTION
 STONE_ACTION = Action(resource=STONE, accumulation=1)
 STONE_ACTION2 = Action(resource=STONE, accumulation=1)
 

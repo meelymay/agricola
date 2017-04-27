@@ -1,17 +1,30 @@
+import action
+
 from constants import *
 
 
+def gen_supply_add(item, n):
+    def supply_add(player):
+        p.add_supply(item, n=n)
+    return supply_add
+
+
 class Improvement:
-    def __init__(self, cost, improve, points=0, requirements=[]):
+    def __init__(self, cost, improve, points=0, requirements=[], space_bonus={}, game=None):
         self.cost = cost
         self.points = points
         self.improve = improve
         self.requirements = requirements
+        self.game = game
+        self.space_bonus = space_bonus
 
     def name(self):
         return self.improve.__name__
 
     def apply_instant(self, player):
+        player.scoring_bonuses.append(lambda p: self.points)
+        for space in self.space_bonus:
+            self.game.add_bonus(player, space, self.space_bonus[space])
         self.improve(player)
 
     def __str__(self):
@@ -60,15 +73,27 @@ MAJOR_IMPROVEMENTS = [
 
 def acorn_basket(player):
     '''Place 1 wild boar on each of the next 2 round spaces.'''
+    # TODO place on round spaces
     pass
 
 def wool_blankets(player):
     '''During scoring, if you live in a wooden/clay house you get 3/2 bonus points'''
-    pass
 
-def milk_jug(player):
+    def unrenovated_bonus(player):
+        material = player.get_house_material()
+        if material == WOOD:
+            return 3
+        elif material == CLAY:
+            return 2
+        else:
+            return 0
+
+    player.scoring_bonuses.append(unrenovated_bonus)
+
+def milk_jug(player, other_players):
     '''Each time any player uses the "Cattle Market" you get 3 food and each other player gets 1 food.'''
-    pass
+    player.after_action[action.CATTLE_ACTION].append(gen_supply_add(FOOD, 3))
+    # TODO cattle market for other_players (both ways)
 
 def thick_forest(player):
     '''Place 1 wood on each even numbered round space.'''
@@ -76,15 +101,16 @@ def thick_forest(player):
 
 def corn_scoop(player):
     '''Each time you use "Grain Seeds" you get 1 additional grain.'''
-    pass
+    player.after_action[action.GRAIN_SEEDS].append(gen_supply_add(GRAIN, 1))
 
 def rammed_clay(player):
     '''Immediately get 1 clay. You can use clay to build fences.'''
+    # TODO clay for fences?!
     pass
 
 def bread_paddle(player):
     '''Immediately get 1 food. For each occupation you play you get an additional "Bake Bread".'''
-    pass
+    player.after_action[action.OCCUPATION_ACTION].append(lambda p: p.take_action(action.BAKE_BREAD))
 
 def lumber_mill(player):
     '''Every improvement costs you 1 wood less.'''
@@ -124,20 +150,18 @@ def beanfield(player):
 
 def stone_tongs(player):
     '''Each time you use a stone accumulation space get 1 additional stone.'''
-    pass
+    player.after_action[action.STONE_ACTION].append(gen_supply_add(STONE, 1))
+    player.after_action[action.STONE_ACTION2].append(gen_supply_add(STONE, 1))
 
 def loam_pit(player):
     '''Each time you use "Day Laborer" also get 3 clay.'''
-
-    def plus_3_clay(p):
-        p.add_supply(CLAY, n=3)
-
-    if DAY_LABORER not in player.after_action:
-        player.after_action[DAY_LABORER] = []
-    player.after_action[DAY_LABORER].append(plus_3_clay)
+    if action.DAY_LABORER not in player.after_action:
+        player.after_action[action.DAY_LABORER] = []
+    player.after_action[action.DAY_LABORER].append(gen_supply_add(CLAY, 3))
 
 def bottles(player):
     '''Costs 1 clay and 1 food per person to play.'''
+    # DONE
     pass
 
 def lasso(player):
@@ -184,35 +208,39 @@ def mantlepiece(player):
     '''Immediately get 1 bonus point for each complete round left to play. You may no longer renovate.'''
     pass
 
-MINOR_IMPROVEMENTS = [
-    Improvement({STONE: 1}, mantlepiece, points=-3, requirements={'renovated': True}),
-    Improvement({WOOD: 1, STONE: 1}, carpenters_parlor),
-    Improvement({WOOD: 1}, strawberry_patch, requirements={'veg_field': 2}, points=2),
-    Improvement({WOOD: 1}, handplow),
-    Improvement({WOOD: 2}, large_greenhouse, requirements={OCCUPATION: 2}),
-    Improvement({GRAIN: 1}, market_stall),
-    Improvement({WOOD: 2}, loom, points=1, requirements={OCCUPATION: 2}),
-    Improvement({CLAY: 1}, claypipe),
-    Improvement({CLAY: 1}, herring_pot),
-    Improvement({WOOD: 1}, threshing_board, points=1, requirements={OCCUPATION: 2}),
-    Improvement({REED: 1}, lasso),
-    Improvement({}, bottles, points=4),
-    Improvement({FOOD: 1}, loam_pit, points=1, requirements={OCCUPATION: 3}),
-    Improvement({WOOD: 1}, stone_tongs),
-    Improvement({FOOD: 1}, beanfield, points=1, requirements={OCCUPATION: 2}),
-    Improvement({WOOD: 2, STONE: 2}, dutch_windmill, points=2),
-    Improvement({WOOD: 1}, clearing_spade),
-    Improvement({}, big_country, requirements={'farmyard': 15}),
-    Improvement({WOOD: 2}, moldboard_plow, requirements={OCCUPATION: 1}),
-    Improvement({WOOD: 3, FOOD: 3}, caravan),
-    Improvement({WOOD: 1, CLAY: 1}, scullery),
-    Improvement({REED: 1}, acorn_basket, requirements={OCCUPATION: 3}),
-    Improvement({}, wool_blankets, requirements={SHEEP: 5}),
-    Improvement({CLAY: 1}, milk_jug),
-    Improvement({}, thick_forest, requirements={CLAY: 5}),
-    Improvement({WOOD: 1}, corn_scoop),
-    Improvement({}, rammed_clay),
-    Improvement({WOOD: 1}, bread_paddle),
-    Improvement({STONE: 2}, lumber_mill, points=2, requirements={OCCUPATION: -3}),
-    Improvement({}, three_field_rotation, requirements={OCCUPATION: 3})
-]
+def init_minors(game):
+    return [
+        Improvement({STONE: 1}, mantlepiece, points=-3, requirements={'renovated': True}, game=game),
+        Improvement({WOOD: 1, STONE: 1}, carpenters_parlor, game=game),
+        Improvement({WOOD: 1}, strawberry_patch, requirements={'veg_field': 2}, points=2, game=game),
+        Improvement({WOOD: 1}, handplow, game=game),
+        Improvement({WOOD: 2}, large_greenhouse, requirements={OCCUPATION: 2}, game=game),
+        Improvement({GRAIN: 1}, market_stall, game=game),
+        Improvement({WOOD: 2}, loom, points=1, requirements={OCCUPATION: 2}, game=game),
+        Improvement({CLAY: 1}, claypipe, game=game),
+        Improvement({CLAY: 1}, herring_pot, game=game),
+        Improvement({WOOD: 1}, threshing_board, points=1, requirements={OCCUPATION: 2}, game=game),
+        Improvement({REED: 1}, lasso, game=game),
+        Improvement({}, bottles, points=4, game=game),
+        Improvement({FOOD: 1}, loam_pit, points=1, requirements={OCCUPATION: 3}, game=game),
+        Improvement({WOOD: 1}, stone_tongs, game=game),
+        Improvement({FOOD: 1}, beanfield, points=1, requirements={OCCUPATION: 2}, game=game),
+        Improvement({WOOD: 2, STONE: 2}, dutch_windmill, points=2, game=game),
+        Improvement({WOOD: 1}, clearing_spade, game=game),
+        Improvement({}, big_country, requirements={'farmyard': 15}, game=game),
+        Improvement({WOOD: 2}, moldboard_plow, requirements={OCCUPATION: 1}, game=game),
+        Improvement({WOOD: 3, FOOD: 3}, caravan, game=game),
+        Improvement({WOOD: 1, CLAY: 1}, scullery, game=game),
+        Improvement({REED: 1}, acorn_basket, requirements={OCCUPATION: 3}, space_bonus={
+            1: [BOAR],
+            2: [BOAR]
+        }, game=game),
+        Improvement({}, wool_blankets, requirements={SHEEP: 5}, game=game),
+        Improvement({CLAY: 1}, milk_jug, game=game),
+        Improvement({}, thick_forest, requirements={CLAY: 5}, game=game),
+        Improvement({WOOD: 1}, corn_scoop, game=game),
+        Improvement({}, rammed_clay, game=game),
+        Improvement({WOOD: 1}, bread_paddle, game=game),
+        Improvement({STONE: 2}, lumber_mill, points=2, requirements={OCCUPATION: -3}, game=game),
+        Improvement({}, three_field_rotation, requirements={OCCUPATION: 3}, game=game)
+    ]

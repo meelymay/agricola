@@ -8,6 +8,7 @@ class Pasture:
     def capacity(self):
         capacity = 1
         if self.name:
+            # TODO somehow unfences stables are getting named?
             capacity = 2
             if self.stable:
                 capacity += 2
